@@ -1,60 +1,203 @@
-# WireGuard Obfuscator Custom App for MikroTik
+# WireGuard Obfuscator для MikroTik
 
-Custom RouterOS App packaging for [ClusterM/wg-obfuscator](https://github.com/ClusterM/wg-obfuscator). It runs next to the native RouterOS WireGuard client and is intended for connections to a self-hosted WireGuard Obfuscator or WireGuard Obfuscator Easy server.
+Custom App для запуска [WireGuard Obfuscator](https://github.com/ClusterM/wg-obfuscator) рядом со штатным WireGuard-клиентом RouterOS.
 
-## What is included
-
-- a multi-architecture (`arm64`, `amd64`) wrapper image;
-- a RouterOS Custom App catalog for GitHub Pages;
-- an idempotent RouterOS integration installer;
-- diagnostics and uninstall scripts;
-- a GitHub Actions workflow that publishes the image to GHCR and the catalog to Pages.
-
-## Publish your copy
-
-1. Create an empty public GitHub repository.
-2. Push this directory to the repository's `main` branch.
-3. In **Settings → Pages**, select **GitHub Actions** as the source.
-4. Run the `Publish App` workflow or push to `main`.
-5. After the first workflow run, open the GHCR package settings and make the package public.
-
-The catalog will be available at:
+Приложение маскирует транспорт WireGuard, при этом сам VPN продолжает обслуживать нативный интерфейс WireGuard в MikroTik:
 
 ```text
-https://GITHUB_USER.github.io/REPOSITORY/app-store.yml
+устройства LAN → таблица vpn → WireGuard RouterOS
+→ локальный wg-obfuscator App → интернет
+→ wg-obfuscator / wg-obfuscator-easy на сервере
 ```
 
-Add it to RouterOS 7.22+:
+## Требования
+
+- RouterOS 7.22 или новее;
+- архитектура `arm64` или `x86`;
+- установленный пакет `container`;
+- включённый Container device mode;
+- собственный сервер с `wg-obfuscator` или `wg-obfuscator-easy`;
+- клиентская конфигурация WireGuard и WireGuard Obfuscator, полученная с сервера.
+
+Первоначальное включение контейнеров требует физического доступа к MikroTik:
 
 ```routeros
-/app/settings set app-store-urls="https://GITHUB_USER.github.io/REPOSITORY/app-store.yml"
+/system/device-mode/update container=yes
 ```
 
-## Installation flow
+Подтвердите изменение кнопкой на устройстве в течение отведённого RouterOS времени. Пакет `container` и device mode включаются только один раз.
 
-1. Install the RouterOS `container` package and enable container device mode.
-2. Run `/app/setup` or the Apps setup wizard in WebFig.
-3. Add this custom catalog and install `wg-obfuscator-client`.
-4. Change the App environment values:
-   - `WG_OBF_TARGET` to the Easy server's public `host:port`;
-   - `WG_OBF_KEY` to the generated obfuscation key;
-   - keep `WG_OBF_MASKING=STUN` unless you know it is unnecessary.
-5. Start the App and confirm that its logs report a listener on UDP port 13255.
-6. Download `routeros/install.template.rsc`, replace its `CHANGE_ME` values, upload and import it.
-7. Delete the uploaded installer because it contains the WireGuard private key.
-8. Import `routeros/diagnose.rsc` to verify the App, handshake, route, and counters.
+## 1. Подготовка Apps
 
-## Security notes
+Откройте WebFig → **Apps** и запустите мастер **Setup**. Выберите:
 
-- Never commit WireGuard private keys or the obfuscation key.
-- Pin release tags before distributing the catalog broadly; `latest` is used only for the initial prototype.
-- The RouterOS App environment exposes `WG_OBF_KEY` to administrators. This key is for traffic obfuscation, not WireGuard encryption, but it should still be treated as sensitive.
-- The installer only creates objects carrying the `wg-obfuscator-app` comment or fixed names. The uninstall script intentionally leaves the App and its stored data intact.
-- The wrapper files are MIT-licensed. The redistributed `wg-obfuscator` binary remains GPL-3.0-or-later; see `container/THIRD_PARTY_NOTICES.md` and the upstream source.
+- диск для приложений;
+- LAN bridge;
+- основной IP роутера.
 
-## Development
+Мастер автоматически подготовит хранилище, VETH и исходящий NAT для приложений.
 
-Render the Pages artifact locally from a POSIX shell:
+## 2. Подключение каталога
+
+Выполните в терминале RouterOS:
+
+```routeros
+/app/settings set app-store-urls="https://degorychev.github.io/mikrotik-wg-obfuscator-app/app-store.yml"
+```
+
+После обновления списка в Apps появится приложение `wg-obfuscator-client`.
+
+- Страница проекта: <https://degorychev.github.io/mikrotik-wg-obfuscator-app/>
+- YAML-каталог: <https://degorychev.github.io/mikrotik-wg-obfuscator-app/app-store.yml>
+- Контейнер: `ghcr.io/degorychev/mikrotik-wg-obfuscator-app:latest`
+
+## 3. Настройка приложения
+
+Перед первым запуском откройте настройки `wg-obfuscator-client` и задайте переменные:
+
+| Переменная | Значение |
+|---|---|
+| `WG_OBF_TARGET` | Публичный адрес и UDP-порт сервера, например `203.0.113.10:51820` |
+| `WG_OBF_KEY` | Значение `key` из клиентской конфигурации обфускатора |
+| `WG_OBF_SOURCE_PORT` | Локальный UDP-порт, обычно `13255` |
+| `WG_OBF_MASKING` | `STUN` рекомендуется для сетей с DPI |
+| `WG_OBF_VERBOSE` | `INFO`, для диагностики можно временно поставить `DEBUG` |
+| `WG_OBF_IN_TIMEOUT` | `30` секунд для восстановления зависшей UDP-сессии |
+
+Запустите App. В журнале должна появиться информация о прослушивании порта и выбранном сервере:
+
+```routeros
+/log print where topics~"container"
+```
+
+Не публикуйте `WG_OBF_KEY`. Это не ключ шифрования WireGuard, но он является частью конфигурации маскировки.
+
+## 4. Интеграция со штатным WireGuard
+
+App устанавливает контейнер и его сеть, но намеренно не изменяет WireGuard, firewall и policy routing без явного импорта администратора.
+
+Скачайте шаблон:
+
+<https://degorychev.github.io/mikrotik-wg-obfuscator-app/routeros/install.template.rsc>
+
+В начале файла замените:
+
+```routeros
+:local privateKey "CHANGE_ME_CLIENT_PRIVATE_KEY"
+:local serverPublicKey "CHANGE_ME_SERVER_PUBLIC_KEY"
+:local serverTransportIP "CHANGE_ME_SERVER_IPV4"
+```
+
+Значения берутся из клиентского файла, выданного `wg-obfuscator-easy`:
+
+- `privateKey` — `[Interface] PrivateKey`;
+- `serverPublicKey` — `[Peer] PublicKey`;
+- `serverTransportIP` — публичный IPv4 сервера без порта.
+
+При необходимости скорректируйте:
+
+```routeros
+:local sourcePort 13255
+:local listenPort 51821
+:local tunnelAddress "10.6.13.2/24"
+:local tunnelGateway "10.6.13.1"
+:local routingTable "vpn"
+```
+
+Загрузите изменённый файл на MikroTik и импортируйте:
+
+```routeros
+/import install.template.rsc
+```
+
+Установщик можно запускать повторно. Он обновляет собственные объекты вместо создания дубликатов:
+
+- интерфейс и peer WireGuard;
+- адрес туннеля;
+- маршрут по умолчанию в таблице `vpn`;
+- исключение серверного IP из policy routing;
+- masquerade клиентского трафика в WireGuard.
+
+После успешного импорта удалите `install.template.rsc` с роутера: файл содержит приватный ключ WireGuard.
+
+## 5. Направление трафика в VPN
+
+Установщик создаёт default route в таблице `vpn`, но не решает, какой трафик должен использовать эту таблицу.
+
+Пример маршрутизации списка адресов:
+
+```routeros
+/ip firewall mangle add \
+    chain=prerouting \
+    dst-address-list=VPN \
+    action=mark-routing \
+    new-routing-mark=vpn
+```
+
+Можно использовать уже существующие правила с `new-routing-mark=vpn`. Не маркируйте публичный IP самого VPN-сервера: установщик добавляет отдельное раннее исключение для трафика контейнера.
+
+## Диагностика
+
+Скачайте и импортируйте:
+
+<https://degorychev.github.io/mikrotik-wg-obfuscator-app/routeros/diagnose.rsc>
+
+```routeros
+/import diagnose.rsc
+```
+
+Скрипт выводит:
+
+- состояние App и его IP;
+- endpoint WireGuard;
+- время последнего handshake;
+- RX/TX peer;
+- маршрут таблицы `vpn`;
+- счётчики mangle и NAT;
+- журнал контейнера.
+
+Для ручной проверки:
+
+```routeros
+/interface wireguard peers print detail where name="wg-obf-easy-server"
+/ip route print detail where routing-table=vpn
+/log print where topics~"container"
+```
+
+Если handshake проходит только один раз, а ответы затем пропадают, оставьте `WG_OBF_MASKING=STUN`. Такой режим помог обойти фильтрацию UDP/DPI в протестированной конфигурации.
+
+## Удаление
+
+Скрипт удаления:
+
+<https://degorychev.github.io/mikrotik-wg-obfuscator-app/routeros/uninstall.rsc>
+
+```routeros
+/import uninstall.rsc
+```
+
+Он удаляет только созданные интеграцией RouterOS-объекты. Сам App и его данные сохраняются. Удалить приложение и его данные можно отдельно через Apps → Cleanup; это необратимая операция.
+
+## Безопасность
+
+- не добавляйте WireGuard private key и `WG_OBF_KEY` в Git;
+- удаляйте установочный `.rsc` с роутера после импорта;
+- используйте закреплённые версии контейнера для критичных установок;
+- помните, что контейнеры расширяют поверхность атаки роутера;
+- `wg-obfuscator` скрывает признаки WireGuard, но не заменяет его шифрование.
+
+## Для разработчиков и форков
+
+Workflow [`.github/workflows/publish.yml`](.github/workflows/publish.yml):
+
+- собирает `linux/arm64` и `linux/amd64`;
+- публикует образ в GHCR;
+- подставляет имя владельца и репозитория в YAML-каталог;
+- разворачивает каталог и страницу через GitHub Pages.
+
+Для собственного форка включите **Settings → Pages → GitHub Actions** и сделайте опубликованный GHCR package публичным.
+
+Локальная генерация Pages:
 
 ```sh
 GITHUB_REPOSITORY=example/mikrotik-wg-obfuscator-app \
@@ -62,8 +205,10 @@ GITHUB_REPOSITORY_OWNER=example \
 sh scripts/render-site.sh
 ```
 
-Build the wrapper image:
+Локальная сборка контейнера:
 
 ```sh
 docker build -t wg-obfuscator-app:dev container
 ```
+
+Обёртка проекта распространяется по лицензии MIT. Включённый `wg-obfuscator` сохраняет лицензию GPL-3.0-or-later; подробности находятся в [`container/THIRD_PARTY_NOTICES.md`](container/THIRD_PARTY_NOTICES.md).

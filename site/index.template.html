@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WireGuard Obfuscator для MikroTik</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; }
+    body { margin: 0; background: #0b1020; color: #e5edf7; }
+    main { max-width: 820px; margin: 0 auto; padding: 64px 24px; }
+    header { display: flex; gap: 20px; align-items: center; }
+    img { width: 82px; height: 82px; }
+    h1 { margin: 0; font-size: clamp(2rem, 5vw, 3.4rem); }
+    h2 { margin-top: 44px; }
+    p, li { line-height: 1.65; color: #bdc9d8; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    pre { padding: 18px; overflow: auto; border: 1px solid #26344d; border-radius: 12px; background: #111a2d; }
+    a { color: #7dd3fc; }
+    .note { border-left: 4px solid #38bdf8; padding: 8px 16px; background: #101a2c; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="icon.svg" alt="WireGuard Obfuscator">
+    <div>
+      <h1>WireGuard Obfuscator</h1>
+      <p>Custom App для нативного WireGuard-клиента RouterOS.</p>
+    </div>
+  </header>
+
+  <h2>Подключение каталога</h2>
+  <pre><code>/app/settings set app-store-urls="__CATALOG_URL__"</code></pre>
+  <p>После этого откройте WebFig → Apps, установите <code>wg-obfuscator-client</code> и задайте переменные из конфигурации WireGuard Obfuscator Easy.</p>
+
+  <h2>Параметры App</h2>
+  <ul>
+    <li><code>WG_OBF_TARGET</code> — публичный адрес и UDP-порт сервера.</li>
+    <li><code>WG_OBF_KEY</code> — ключ из клиентской конфигурации.</li>
+    <li><code>WG_OBF_MASKING</code> — рекомендуется <code>STUN</code>.</li>
+    <li><code>WG_OBF_SOURCE_PORT</code> — локальный порт, по умолчанию <code>13255</code>.</li>
+  </ul>
+
+  <h2>Интеграция с RouterOS</h2>
+  <p>Скачайте <a href="routeros/install.template.rsc">install.template.rsc</a>, вставьте WireGuard private key, server public key и внешний IPv4 сервера, затем импортируйте файл.</p>
+  <pre><code>/import install.template.rsc</code></pre>
+  <p>Диагностика: <a href="routeros/diagnose.rsc">diagnose.rsc</a>. Удаление RouterOS-настроек: <a href="routeros/uninstall.rsc">uninstall.rsc</a>.</p>
+
+  <p class="note">Container package и device mode необходимо включить заранее. Файл установки содержит WireGuard private key — удалите его с роутера после импорта.</p>
+
+  <p><a href="__REPOSITORY_URL__">Исходный код и документация</a></p>
+</main>
+</body>
+</html>
+

@@ -1,0 +1,25 @@
+- name: wg-obfuscator-client
+  descr: Run WireGuard Obfuscator next to the native RouterOS WireGuard client.
+  page: __PROJECT_PAGE__
+  category: networking
+  icon: __PROJECT_PAGE__/icon.svg
+  default-credentials: ""
+  auto-update: false
+  supported-archs:
+    - arm64
+    - x86
+  compatible-boards:
+    - "*"
+  services:
+    wg-obfuscator:
+      image: __IMAGE__
+      container_name: wg-obfuscator-app
+      restart: unless-stopped
+      environment:
+        WG_OBF_TARGET: "203.0.113.10:51820"
+        WG_OBF_KEY: "CHANGE_ME"
+        WG_OBF_SOURCE_PORT: "13255"
+        WG_OBF_MASKING: "STUN"
+        WG_OBF_VERBOSE: "INFO"
+        WG_OBF_IN_TIMEOUT: "30"
+

@@ -6,6 +6,7 @@
   default-credentials: ""
   auto-update: false
   supported-archs:
+    - arm
     - arm64
     - x86
   compatible-boards:
@@ -22,4 +23,3 @@
         WG_OBF_MASKING: "STUN"
         WG_OBF_VERBOSE: "INFO"
         WG_OBF_IN_TIMEOUT: "30"
-

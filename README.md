@@ -13,7 +13,7 @@ Custom App для запуска [WireGuard Obfuscator](https://github.com/Clust
 ## Требования
 
 - RouterOS 7.22 или новее;
-- архитектура `arm64` или `x86`;
+- архитектура `arm`, `arm64` или `x86`;
 - установленный пакет `container`;
 - включённый Container device mode;
 - собственный сервер с `wg-obfuscator` или `wg-obfuscator-easy`;
@@ -190,7 +190,7 @@ App устанавливает контейнер и его сеть, но на�
 
 Workflow [`.github/workflows/publish.yml`](.github/workflows/publish.yml):
 
-- собирает `linux/arm64` и `linux/amd64`;
+- собирает `linux/arm/v7`, `linux/arm64` и `linux/amd64`;
 - публикует образ в GHCR;
 - подставляет имя владельца и репозитория в YAML-каталог;
 - разворачивает каталог и страницу через GitHub Pages.

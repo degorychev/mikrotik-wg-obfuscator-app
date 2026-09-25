@@ -6,7 +6,6 @@
   default-credentials: ""
   auto-update: false
   supported-archs:
-    - arm
     - arm64
     - x86
   compatible-boards:

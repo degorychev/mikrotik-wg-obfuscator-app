@@ -13,11 +13,13 @@ Custom App для запуска [WireGuard Obfuscator](https://github.com/Clust
 ## Требования
 
 - RouterOS 7.22 или новее;
-- архитектура `arm`, `arm64` или `x86`;
+- архитектура `arm64` или `x86` для установки через RouterOS Apps;
 - установленный пакет `container`;
 - включённый Container device mode;
 - собственный сервер с `wg-obfuscator` или `wg-obfuscator-easy`;
 - клиентская конфигурация WireGuard и WireGuard Obfuscator, полученная с сервера.
+
+Для ARM 32-bit подсистема `/app` в RouterOS недоступна. Опубликованный образ содержит платформу `linux/arm/v7`, поэтому на таких устройствах его можно установить вручную через `/container`, но не через YAML-каталог Apps.
 
 Первоначальное включение контейнеров требует физического доступа к MikroTik:
 

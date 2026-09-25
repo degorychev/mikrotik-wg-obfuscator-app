@@ -21,4 +21,4 @@
         WG_OBF_SOURCE_PORT: "13255"
         WG_OBF_MASKING: "STUN"
         WG_OBF_VERBOSE: "INFO"
-        WG_OBF_IN_TIMEOUT: "30"
+        WG_OBF_IN_TIMEOUT: "0"

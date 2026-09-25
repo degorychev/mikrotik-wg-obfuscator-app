@@ -6,7 +6,7 @@ TARGET="${WG_OBF_TARGET:-}"
 KEY="${WG_OBF_KEY:-}"
 MASKING="${WG_OBF_MASKING:-STUN}"
 VERBOSE="${WG_OBF_VERBOSE:-INFO}"
-IN_TIMEOUT="${WG_OBF_IN_TIMEOUT:-30}"
+IN_TIMEOUT="${WG_OBF_IN_TIMEOUT:-0}"
 
 fail() {
     printf 'wg-obfuscator-app: %s\n' "$1" >&2
@@ -50,11 +50,15 @@ target = ${TARGET}
 key = ${KEY}
 masking = ${MASKING}
 verbose = ${VERBOSE}
-in-timeout = ${IN_TIMEOUT}
 EOF
+
+# Upstream v1.6 documents 0 as disabled, but rejects an explicitly configured
+# zero. Omit the option entirely to use its disabled default.
+if [ "$IN_TIMEOUT" -gt 0 ]; then
+    printf 'in-timeout = %s\n' "$IN_TIMEOUT" >> /run/wg-obfuscator/wg-obfuscator.conf
+fi
 
 printf 'wg-obfuscator-app: target=%s source-port=%s masking=%s verbose=%s\n' \
     "$TARGET" "$SOURCE_PORT" "$MASKING" "$VERBOSE"
 
 exec /usr/local/bin/wg-obfuscator -c /run/wg-obfuscator/wg-obfuscator.conf
-
